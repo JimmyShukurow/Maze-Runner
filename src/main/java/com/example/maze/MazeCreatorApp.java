@@ -24,6 +24,12 @@ import javafx.stage.Stage;
 import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Random;
 
@@ -129,6 +135,8 @@ public class MazeCreatorApp extends Application {
                 return;
             }
             joinRace("127.0.0.1", port);
+            status.setText("Hosting on port " + port + " — your friend joins at "
+                    + localAddress() + ":" + port);
         });
 
         joinButton.setOnAction(e -> {
@@ -311,6 +319,38 @@ public class MazeCreatorApp extends Application {
         loadButton.setDisable(inRace);
         hostButton.setDisable(inRace);
         joinButton.setDisable(inRace);
+    }
+
+    private static String localAddress() {
+        String fallback = null;
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface nic = interfaces.nextElement();
+                if (nic.isLoopback() || !nic.isUp() || nic.isVirtual()) {
+                    continue;
+                }
+                String name = nic.getName().toLowerCase();
+                boolean bridgeOrContainer = name.startsWith("docker") || name.startsWith("br-")
+                        || name.startsWith("veth") || name.startsWith("virbr")
+                        || name.startsWith("tun") || name.startsWith("tap");
+                for (InterfaceAddress interfaceAddress : nic.getInterfaceAddresses()) {
+                    InetAddress address = interfaceAddress.getAddress();
+                    if (address instanceof Inet4Address && address.isSiteLocalAddress()) {
+                        String ip = address.getHostAddress();
+                        if (!bridgeOrContainer) {
+                            return ip;
+                        }
+                        if (fallback == null) {
+                            fallback = ip;
+                        }
+                    }
+                }
+            }
+        } catch (SocketException ignored) {
+            // fall through to placeholder
+        }
+        return fallback != null ? fallback : "<this machine's LAN IP>";
     }
 
     private static String[] parseAddress(String text) {

@@ -6,10 +6,14 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 
 public final class RaceClient implements Closeable {
+
+    private static final int CONNECT_TIMEOUT_MS = 5000;
 
     public interface Listener {
         void onOpponent(String name);
@@ -51,7 +55,8 @@ public final class RaceClient implements Closeable {
     private void connect() {
         boolean began = false;
         try {
-            socket = new Socket(host, port);
+            socket = new Socket();
+            socket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT_MS);
             out = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
             out.println("HELLO\t" + name);
             BufferedReader in = new BufferedReader(
@@ -65,6 +70,11 @@ public final class RaceClient implements Closeable {
             }
             if (!began && !closed) {
                 listener.onError("Connection closed before the race started.");
+            }
+        } catch (SocketTimeoutException e) {
+            if (!closed) {
+                listener.onError("Cannot reach " + host + ":" + port
+                        + " — timed out. Check the address and the host's firewall.");
             }
         } catch (IOException e) {
             if (!closed) {
