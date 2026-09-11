@@ -166,10 +166,10 @@ public class MazeCreatorApp extends Application {
             int dx = 0;
             int dy = 0;
             switch (e.getCode()) {
-                case W -> dy = -1;
-                case S -> dy = 1;
-                case A -> dx = -1;
-                case D -> dx = 1;
+                case UP -> dy = -1;
+                case DOWN -> dy = 1;
+                case LEFT -> dx = -1;
+                case RIGHT -> dx = 1;
                 default -> {
                     return;
                 }
