@@ -5,11 +5,13 @@ import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputControl;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
@@ -28,7 +30,7 @@ import java.util.Random;
 public class MazeCreatorApp extends Application {
 
     private final MazeCanvas canvas = new MazeCanvas(860, 600);
-    private final Label status = new Label("Generate a maze, then reach the red end with W, A, S, D.");
+    private final Label status = new Label("Generate a maze, then reach the red end with the arrow keys.");
     private final ChoiceBox<Integer> sizeBox = new ChoiceBox<>();
     private final TextField nameField = new TextField(System.getProperty("user.name", "player"));
     private final TextField addressField = new TextField("127.0.0.1:7777");
@@ -150,6 +152,14 @@ public class MazeCreatorApp extends Application {
         toolbar.setAlignment(Pos.CENTER_LEFT);
         toolbar.setPadding(new Insets(10));
 
+        // Only the canvas stays in the traversal chain, so arrow keys can never hand focus to a control.
+        for (Node control : List.of(sizeBox, generateButton, solveButton, clearButton, saveButton,
+                loadButton, exportButton, hostButton, joinButton, nameField, addressField)) {
+            control.setFocusTraversable(false);
+        }
+        canvas.setFocusTraversable(true);
+        canvas.setStyle("-fx-focus-color: transparent; -fx-faint-focus-color: transparent;");
+
         StackPane center = new StackPane(canvas);
         center.setPadding(new Insets(0, 10, 10, 10));
 
@@ -163,6 +173,10 @@ public class MazeCreatorApp extends Application {
 
         Scene scene = new Scene(root, 1060, 740);
         scene.addEventFilter(KeyEvent.KEY_PRESSED, e -> {
+            if (e.getTarget() instanceof TextInputControl || e.getTarget() instanceof ChoiceBox
+                    || scene.getFocusOwner() instanceof TextInputControl) {
+                return;
+            }
             int dx = 0;
             int dy = 0;
             switch (e.getCode()) {
@@ -175,6 +189,7 @@ public class MazeCreatorApp extends Application {
                 }
             }
             e.consume();
+            canvas.requestFocus();
             if (canvas.movePlayer(dx, dy)) {
                 moves++;
                 if (racing && !raceFinished) {
@@ -195,6 +210,7 @@ public class MazeCreatorApp extends Application {
         stage.setTitle("Maze Creator");
         stage.setScene(scene);
         stage.show();
+        canvas.requestFocus();
         this.stage = stage;
 
         showMaze(Maze.generate(41, 41, new Random()), "Generated 41x41 maze.");
@@ -203,7 +219,8 @@ public class MazeCreatorApp extends Application {
     private void showMaze(Maze maze, String message) {
         canvas.setMaze(maze);
         moves = 0;
-        status.setText(message + " Move with W/A/S/D.");
+        canvas.requestFocus();
+        status.setText(message + " Arrow keys move the blue player.");
     }
 
     private void joinRace(String host, int port) {
